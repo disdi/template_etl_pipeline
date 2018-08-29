@@ -1,22 +1,42 @@
 version: '2'
-# [TODO]: Replace pipe-template with pipe-codename in this file, where codename
-# is the codename for your project.
+# [TODO]: Replace sandvik-nlp with sandvik-myproject in this file
+
 services:
-  pipeline:
-    image: gfw/pipe-template
+  sandvik_nlp:
+    image: gfw/sandvik-nlp
     build: .
     volumes:
       - ".:/opt/project"
       - "gcp:/root/.config/"
 
   gcloud:
-    image: gfw/pipe-template
+    image: gfw/sandvik-nlp
     build: .
     entrypoint: gcloud
     volumes:
       - "gcp:/root/.config/"
 
+  py.test:
+    image: gfw/sandvik-nlp
+    build: .
+    entrypoint: py.test
+    volumes:
+      - ".:/opt/project"
+      - "gcp:/root/.config/"
+
+  bash:
+    image: gfw/sandvik-nlp
+    build: .
+    entrypoint: /bin/bash
+    volumes:
+      - ".:/opt/project"
+      - "gcp:/root/.config/"
+
+# Use an external named volume so that we can share gcp auth across containers
+# Before first use, this volume must be manually created with
+#   docker volume create --name=gcp
 volumes:
   gcp:
+    external: true
 
 

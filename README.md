@@ -1,65 +1,65 @@
-# Dataflow pipeline template
+# Template for pipeline
 
-This repository is a template for python dataflow pipelines at Global Fishing
-Watch. It's intended to be cloned and used as a template for new micropipelines
-using apache beam in the google cloud dataflow platform.
 
-It contains all the plumbing needed to validate and parse command line
-arguments, as well as reading data from a source bigquery table and dumping the
-results in another sink bigquery table.
+This repository contains a dataflow pipeline.
 
-## Usage
+# Running
 
-Clone the repository, delete the `.git` and run `git init` to have a fresh
-repository ready to customize.
+## Dependencies
 
-You'll need to take a look at a couple of files that you need to customize
-before starting:
+You just need [docker](https://www.docker.com/) and
+[docker-compose](https://docs.docker.com/compose/) in your machine to run the
+pipeline. No other dependency is required.
 
-* Customize the name and description of your project at `setup.py` and the
-  docker image name at `docker-compose.yaml`. Look for `[TODO]` marks for
-instructions on what to change and how.
+## Setup
 
-* Customize the arguments that are needed to run your pipeline. These are
-  spread at 3 different files:
+If using GCP, authenticate your google cloud account inside the docker images. To do that, you need
+to run this command and follow the instructions:
 
-    * `pipeline/options/all.py`: Contains options that are required for both
-      local and remote runs.
+```
+docker-compose run gcloud auth application-default login
+```
 
-    * `pipeline/options/local.py`: Contains options that are required only on
-      local runs.
+## CLI
 
-    * `pipeline/options/remote.py`: Contains options that are required only on
-      remote runs.
+The pipeline includes a CLI that can be used to start both local test runs and
+remote full runs on GCP.
 
-* Customize the bigquery schemas for inputs and outputs at `pipeline/schemas/input.py`
-  and `pipeline/schemas/output.py`.
+For local test run, execute the below command -
+```
+docker-compose run pipe_nlp  dataflow_test --tag_field tag --tag_value test --dest ./output/test_pipe_nlp_
+```
 
-* Create a sample query to run your pipeline in local test mode. Take a look at
-  `examples/local.sql` and customize for what you need here. Take care to only
-return a few rows here so that local test runs are quick and cheap.
+For remote test run, execute the below command -
+```
+docker-compose run pipe_nlp dataflow_test --tag_field tag --tag_value
+test  --dest gs:<bucket-id> --runner=DataflowRunner --project
+gs:<project-id> --temp_location gs:<bucket-id>/<temp-path>
+--staging_location gs:<bucket-id>/<staging-path> --job_name <job-name>
+--max_num_workers 4 --disk_size_gb 50
+--requirements_file=./requirements.txt --setup_file=./setup.py
+```
 
-* Create the transforms you are going to use at `pipeline/transforms/`. See
-  `pipeline/transforms/sample.py` for a simple sample transform.
+## Development
+To run inside docker, use the following.  docker-compose mounts the current directory, so
+your changes are available immediately wihtout having to re-run docker-compose build.
+If you change any python dependencies, then you will need to re-run build
 
-* Define your pipeline at `pipeline/definition.py` by composing the transforms
-  you created.
+```
+docker-compose build
+docker-compose run bash
+python -m sandvik_nlp dataflow_test --tag_field tag --tag_value test --dest ./output/test_pipe_nlp_
+```
 
-* Copy `README.template.md` to `README.md` and customize with your project
-  documentation. Look for `[TODO]` marks and complete as needed.
 
-# License
+For a development environment outside of docker
+```
+virtualenv venv
+source venv/bin/actiavte
+pip install --process-dependency-links -e .
+py.test tests
+```
 
-Copyright 2017 Global Fishing Watch
+## Airflow
+This pipeline is designed to be executed from Airflow inside docker.
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.

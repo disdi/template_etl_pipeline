@@ -5,6 +5,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
+.pytest_cache
 
 # C extensions
 *.so
@@ -106,3 +107,9 @@ venv.bak/
 # End of https://www.gitignore.io/api/python
 
 output/
+
+#PyCharm
+.idea/
+
+#OSX
+.DS_Store
