@@ -11,20 +11,30 @@ from sandvik_nlp.tools import JSONDictCoder
 from sandvik_nlp.options import TemplateOptions
 from sandvik_nlp.transform import AddField
 
+from sandvik_nlp.beam_utils import NoopCoder
+from sandvik_nlp.beam_utils import CsvFileSource
+from apache_beam.io.filesystem import CompressionTypes
+import pandas as pd
+
+class Train(beam.DoFn):
+    def process(self, element):
+        #print(element['sepal_width'])
+        df = pd.DataFrame([element], columns=element.keys())
+        print df
 
 def run(options):
 
     template_options = options.view_as(TemplateOptions)
 
-    source = GenerateMessages(generator=MessageGenerator())
-    sink = beam.io.WriteToText(file_path_prefix=template_options.dest, coder=JSONDictCoder())
+
+    source = beam.io.Read(CsvFileSource('/opt/project/sandvik_nlp/iris/iris.csv'))
+    sink = beam.io.WriteToText(file_path_prefix=template_options.dest, coder=NoopCoder())
 
     pipeline = beam.Pipeline(options=options)
     (
         pipeline
         | "generate" >> source
-        | "tag" >> beam.ParDo(AddField(field=template_options.tag_field,
-                                       value=template_options.tag_value))
+        | 'Train Values' >> beam.ParDo(Train())
         | "write" >> sink
     )
 
@@ -39,3 +49,4 @@ def run(options):
 
     logging.info('returning with result.state=%s' % result.state)
     return 0 if result.state in success_states else 1
+
