@@ -37,8 +37,6 @@ with DAG('sandvik_template', schedule_interval=timedelta(days=1), default_args=d
         options=dict(
             command='{docker_run} {docker_image} dataflow_test'.format(**config),
             startup_log_file=pp.join(Variable.get('DATAFLOW_WRAPPER_LOG_PATH'), 'sandvik_nlp/dataflow_test.log'),
-            tag_field='{tag_field}'.format(**config),
-            tag_value='{tag_value}'.format(**config),
             dest='gs://{sandvikline_bucket}/{output_path}'.format(**config),
             project=config['project_id'],
             runner='DataflowRunner',

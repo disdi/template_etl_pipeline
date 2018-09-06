@@ -31,7 +31,8 @@ VOLUME ["/root/.config"]
 # Setup local application dependencies
 COPY . /opt/project
 RUN pip install --process-dependency-links -e .
+RUN pip install sklearn scipy
 
 # Setup the entrypoint for quickly executing the sandviklines
-ENTRYPOINT ["scripts/run.sh"]
+#ENTRYPOINT ["scripts/run.sh"]
 
