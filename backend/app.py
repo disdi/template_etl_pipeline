@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 from sklearn import svm
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn import datasets
 from sklearn.externals import joblib
 import apache_beam as beam
@@ -14,7 +15,7 @@ PORT = 8081
 
 # initialize flask application
 app = Flask(__name__)
-
+score = 0
 class Train(beam.DoFn):
     def process(self, element):
         df = pd.DataFrame([element], columns=element.keys())
@@ -25,16 +26,14 @@ class Train(beam.DoFn):
         df['species'] = df['species'].map(species_map)
         y = df.species
 
+        clf = KNeighborsClassifier(n_neighbors=1)
         # fit model
-        clf = svm.SVC(C=3,
-                  probability=True,
-                  random_state=3)
-
         clf.fit(X, y)
         # persist model
         joblib.dump(clf, 'model.pkl')
 
-        return (round(clf.score(X, y) * 100, 2))
+        global score
+        score = round(clf.score(X, y) * 100, 2)
 
 
 @app.route('/api/train', methods=['POST'])
@@ -46,7 +45,7 @@ def train():
     source_train = beam.io.Read(CsvFileSource('./iris/iris_train.csv'))
 
     p = beam.Pipeline()
-    training_accuracy = (
+    training = (
            p
            | 'generate' >> source_train
            | 'train'>> beam.ParDo(Train())
@@ -55,7 +54,8 @@ def train():
     p.run()#.wait_until_finish()
 
 
-    return jsonify({'accuracy': training_accuracy})
+    global score
+    return jsonify({'accuracy': score})
 
 
 @app.route('/api/predict', methods=['POST'])
@@ -68,9 +68,10 @@ def predict():
     clf = joblib.load('model.pkl')
     probabilities = clf.predict_proba(X)
 
-    return jsonify([{'name': 'Iris-Setosa', 'value': round(probabilities[0, 0] * 100, 2)},
-                    {'name': 'Iris-Versicolour', 'value': round(probabilities[0, 1] * 100, 2)},
-                    {'name': 'Iris-Virginica', 'value': round(probabilities[0, 2] * 100, 2)}])
+    return jsonify([{'name': 'Iris-Setosa', 'value': round(probabilities[0, 0] * 100, 2)}])
+    #return jsonify([{'name': 'Iris-Setosa', 'value': round(probabilities[0, 0] * 100, 2)},
+    #                {'name': 'Iris-Versicolour', 'value': round(probabilities[0, 1] * 100, 2)},
+    #                {'name': 'Iris-Virginica', 'value': round(probabilities[0, 2] * 100, 2)}])
 
 
 if __name__ == '__main__':

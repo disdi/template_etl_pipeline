@@ -2,13 +2,6 @@ version: '2'
 # [TODO]: Replace sandvik-nlp with sandvik-myproject in this file
 
 services:
-  dataflow:
-    image: gfw/sandvik-nlp
-    build: .
-    entrypoint: ["python", "-m", "sandvik_nlp", "dataflow_test"]
-    volumes:
-      - ".:/opt/project"
-      - "gcp:/root/.config/"
   frontend:
     image: frontend-angular
     build:
@@ -29,15 +22,6 @@ services:
         - ./backend:/app # for watching files
     ports:
       - "8081:8081" # if changed, please change port in `frontend/proxy.conf.dev.json`
-
-
-  bash:
-    image: gfw/sandvik-nlp
-    build: .
-    entrypoint: /bin/bash
-    volumes:
-      - ".:/opt/project"
-      - "gcp:/root/.config/"
 
 
 # Use an external named volume so that we can share gcp auth across containers
