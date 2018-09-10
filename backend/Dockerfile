@@ -1,11 +1,17 @@
 FROM ubuntu:16.04
+FROM python:2.7
 
 RUN apt-get update \
     && apt-get install -yq --no-install-recommends \
     python \
-    python-pip
-RUN pip install --upgrade pip==9.0.3 \
-    && pip install setuptools
+    python-pip \
+    vim
+RUN pip install setuptools \
+    && pip install -U --ignore-installed pip==18.0 \ 
+    && pip install psutil \
+    && pip install unidecode \
+    && pip install nltk \
+    && pip install lightgbm
 
 # for flask web server
 EXPOSE 8081
