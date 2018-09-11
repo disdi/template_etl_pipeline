@@ -8,8 +8,8 @@
             <md-input-container>
                 <input
                     mdInput
-                    name="C Parameter"
-                    placeholder="C Parameter"
+                    name="Training Parameter"
+                    placeholder="Training Parameter"
                     [(ngModel)]="svcParameters.C">
             </md-input-container>
             <button md-raised-button (click)="trainModel()">
@@ -42,29 +42,15 @@
             <div fxLayout="row">
                 <md-input-container>
                     <input mdInput
-                           name="Sepal width"
-                           placeholder="Sepal width"
+                           name="JIRA ID"
+                           placeholder="JIRA ID"
                            [(ngModel)]="iris.sepalWidth">
                 </md-input-container>
                 <md-input-container>
                     <input mdInput
-                           name="Sepal length"
-                           placeholder="Sepal length"
+                           name="Failure Message"
+                           placeholder="Failure Message"
                            [(ngModel)]="iris.sepalLength">
-                </md-input-container>
-            </div>
-            <div fxLayout="row">
-                <md-input-container>
-                    <input mdInput
-                           name="Petal width"
-                           placeholder="Petal width"
-                           [(ngModel)]="iris.petalWidth">
-                </md-input-container>
-                <md-input-container>
-                    <input mdInput
-                           name="Petal length"
-                           placeholder="Petal length"
-                           [(ngModel)]="iris.petalLength">
                 </md-input-container>
             </div>
             <div>

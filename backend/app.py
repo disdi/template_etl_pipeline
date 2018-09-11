@@ -4,9 +4,6 @@ from sklearn import svm
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn import datasets
 from sklearn.externals import joblib
-#import apache_beam as beam
-import beam_utils
-from beam_utils import CsvFileSource
 import pandas as pd
 import sys, os, psutil
 import logging
@@ -1210,75 +1207,23 @@ score = 0
 
 @app.route('/api/train', methods=['POST'])
 def train():
-    # get parameters from request
     parameters = request.get_json()
-
-    # read iris data set
-    #source_train = beam.io.Read(CsvFileSource('./iris/iris_train.csv'))
-
-    #p = beam.Pipeline()
-    #training = (
-           #p
-           #| 'generate' >> source_train
-           #| 'train'>> beam.ParDo(Train())
-    #)
-
-    #p.run()#.wait_until_finish()
-    
-    
     main_apply_series_man = ApplySeriesManager(nb_workers=4)
-    print "Line 1180"
-    
-    # In[25]:
-    
-    
+
     main_apply_man = ApplyManager(nb_workers=4)
-    
-    
-    # In[26]:
-    
-    
     main_hash_man = HashingManager(nb_workers=4)
-    
-    
-    # In[27]:
-    
-    
     mode=PROD
+
     # Read training data and test dataset
     data_man = DataManager(mode=mode)
-    
-    
-    # In[28]:
-    
-    
-    
     train = data_man.get_train_data()
-            
-    # In[29]:
-    
-    
     train["severity"] = train["severity"].map({'NA':0, 'Low':4, 'Medium':3, 'High':2, 'Critical':1})
-    train["priority"] = train["priority"].map({'NA':0, 'Undefined':0, 'P1 (Gating)':1, 'P2 (Must Solve)':2, 'P3 (Solution Desired)':3, 'P4 (No Impact/Notify)':4})       
-    
-    
-    # In[30]:
-    
-    
+    train["priority"] = train["priority"].map({'NA':0, 'Undefined':0, 'P1 (Gating)':1, 'P2 (Must Solve)':2, 'P3 (Solution Desired)':3, 'P4 (No Impact/Notify)':4})
+
     train['severity'].value_counts()
-    
-    
-    # In[31]:
-    
-    
     train['priority'].value_counts()
-    
-    
-    # In[32]:
-    
-    
-    train["severity"].fillna(4, axis=0, inplace=True) 
-    train["priority"].fillna(4, axis=0, inplace=True) 
+    train["severity"].fillna(4, axis=0, inplace=True)
+    train["priority"].fillna(4, axis=0, inplace=True)
     train.loc[(train.severity == 1) & (train.priority == 1), 'states'] =  1
     train.loc[(train.severity == 1) & (train.priority == 2), 'states'] =  2
     train.loc[(train.severity == 1) & (train.priority == 3), 'states'] =  3
@@ -1286,7 +1231,7 @@ def train():
     train.loc[(train.severity == 2) & (train.priority == 1), 'states'] =  5
     train.loc[(train.severity == 2) & (train.priority == 2), 'states'] =  6
     train.loc[(train.severity == 2) & (train.priority == 3), 'states'] =  7
-    train.loc[(train.severity == 2) & (train.priority == 4), 'states'] =  8 
+    train.loc[(train.severity == 2) & (train.priority == 4), 'states'] =  8
     train.loc[(train.severity == 3) & (train.priority == 1), 'states'] =  9
     train.loc[(train.severity == 3) & (train.priority == 2), 'states'] =  10
     train.loc[(train.severity == 3) & (train.priority == 3), 'states'] =  11
@@ -1294,190 +1239,54 @@ def train():
     train.loc[(train.severity == 4) & (train.priority == 1), 'states'] =  13
     train.loc[(train.severity == 4) & (train.priority == 2), 'states'] =  14
     train.loc[(train.severity == 4) & (train.priority == 3), 'states'] =  15
-    train.loc[(train.severity == 4) & (train.priority == 4), 'states'] =  16  
-    
-    
-    # In[33]:
-    
-    
-    train['states'].value_counts()
-    
-    
-    # In[34]:
-    
-    
-    train["states"].fillna(0, axis=0, inplace=True) 
-    y = train["states"].values
-    print "Line 1263"
-    print "DONE"
-    
-    
-    
-    
-   # df['states'] = df['states'].map(species_map)
-   # y = df.species
+    train.loc[(train.severity == 4) & (train.priority == 4), 'states'] =  16
 
-    #clf = KNeighborsClassifier(n_neighbors=1)
-    #clf.fit(X, y)
-    #with open('filename.pkl', 'wb') as f:
-        #pickle.dump(clf, f)        
-    
-    
-    
-    # In[28]:
-    
-    
-    
-    
-    # In[35]:
-    
-    
+    train['states'].value_counts()
+    train["states"].fillna(0, axis=0, inplace=True)
+    y = train["states"].values
+
     add_character_and_word_lengths(data=train, app_series_man_=main_apply_series_man)
-    
-    
-    # In[36]:
-    
-    
     preprocess_text_features(df=train, app_series_man_=main_apply_series_man)
-    
-    
-    # In[37]:
-    
-    
+
     csr_description_trn = get_hashing_features(train, Hash_binary, main_apply_series_man, main_apply_man, main_hash_man)
-    
-    
-    # In[38]:
-    
-    
-    csr_description_trn
-    
-    
-    # In[39]:
-    
-    
+
     trn_not_zeros = np.array((csr_description_trn.sum(axis=0) != 0))[0]
     csr_description_trn = csr_description_trn[:, trn_not_zeros]
     gc.collect()
-    
-    
-    # In[40]:
-    
-    
-    csr_description_trn
-    
-    
-    # In[41]:
-    
-    
+
     triage_man = OHEManager(feature_name="triage")
     triage_man.add_factorized_feature_on_train(trn=train)
     csr_triage_trn = triage_man.get_feature_for_sgd_train(trn=train)
-    csr_triage_trn
-    
-    
-    # In[42]:
-    
-    
-    #csr_ridge_trn = csr_triage_trn
-    
-    
-    # In[43]:
-    
-    
+
     trn_not_zeros = np.array((csr_triage_trn.sum(axis=0) != 0))[0]
     csr_triage_trn = csr_triage_trn[:, trn_not_zeros]
     gc.collect()
-    
-    
-       
-    
-    gc.collect()
-    
-    
-    # In[48]:
-    
-    
-    print("=" * 50)
-    print("Finished training ridge/liblinear")
-    print("=" * 50)
-    
-    
-    # In[49]:
-    
-    
-    # Add OOF predictions to train data
-    #train["sgd_liblinear"] = np.expm1(oof_liblinear_preds)
-    #train["sgd_ridge"] = np.expm1(oof_ridge_preds)
-    #train["liblinear_ridge"] = .50 * np.expm1(oof_liblinear_preds) + .50 * np.expm1(oof_ridge_preds)
-    
-    
-    # In[50]:
-    
-    
+
+
     name_indexers = add_name_features_for_train(df=train)
-    
-    
-    # In[51]:
-    
-    
+
+
     csr_num_trn = get_numerical_features(
             train,
             numericals=get_numerical_features_for_lgb(train),
             gaussian=False,
             rank=True
         )
-    
-    
-    # In[52]:
-    
-    
-    print("NAN IN NUM : ", np.isnan(np.array((csr_num_trn.sum(axis=0)))[0]).sum())
-    
-    
-    # In[53]:
-    
-    
+
     name_description = train[["Description"]].copy()
     del train
     gc.collect()
-    
-    
-    
-    
-    # In[60]:
-    
-    
-    print("Feature reduction done, X_description shape ", csr_description_trn.shape, " after col pruning")
-    
-    
-    # In[61]:
-    
-    
+
     csr_tfidfname_trn, wordbatch_tfidf, clipping = get_tfidf_features_for_train(name_description, hash_man_=main_hash_man)
-    
-    
-    # In[62]:
-    
-    
     csr_lgb_trn = hstack((
             csr_tfidfname_trn,
             csr_description_trn,
             csr_num_trn,
             csr_triage_trn
         )).tocsr()
-    
-    
-    # In[63]:
-    
-    
     del csr_description_trn, csr_num_trn, csr_tfidfname_trn
     gc.collect()
-    
-    
-    # In[64]:
-    
-    
+
     # Create parameters
     params = {
            "objective": "regression",
@@ -1492,7 +1301,7 @@ def train():
            "min_data_in_leaf": 197,
            "num_leaves": 103,
        }
-    
+
     params_l2 = {
            'learning_rate': 0.4,
            'application': 'regression_l2',
@@ -1507,19 +1316,11 @@ def train():
            'metric': 'RMSE',
            'nthread': 4
        }
-    
-    
-    # In[65]:
-    
-    
+
     lgb1_rounds = 500
     lgb2_rounds = 4000
     csr_lgb_trn = csr_lgb_trn.astype('float32')
-    
-    
-    # In[66]:
-    
-    
+
     if ensemble:
         # Run LGB 1 and LGB 2
         # Reuse folds defined for ridge/sgd
@@ -1544,27 +1345,16 @@ def train():
                     num_boost_round=lgb2_rounds,
                     valid_sets=watchlist,
                     verbose_eval=500.0)
-    
                 break
             # Check OOF score of ensemble ?
             oof_l1 = lgb_l1.predict(csr_lgb_trn[val_idx])
             oof_l2 = lgb_l2.predict(csr_lgb_trn[val_idx])
-            print ("1 =========================================================")
-    
-            print("OOF error L1   : %.6f "
-                  % mean_squared_error(y[val_idx], oof_l1) ** .5)
-            print("OOF error L2   : %.6f "
-                  % mean_squared_error(y[val_idx], oof_l2) ** .5)
-            print("OOF error Mix1 : %.6f "
-                  % mean_squared_error(y[val_idx], oof_l1 * .3 + oof_l2 * .7) ** .5)
             oof_preds = np.expm1(oof_l2) * .7 + np.expm1(oof_l1) * .3
             print("OOF error Mix2 : %.6f "
                   % mean_squared_error(y[val_idx], np.log1p(oof_preds)) ** .5)
         else:
             d_train = lgb.Dataset(csr_lgb_trn, label=y)
             watchlist = [d_train]
-            print ("2 =========================================================")
-    
             # Train lgb l1
             lgb_l1 = lgb.train(
                 params=params,
@@ -1581,16 +1371,12 @@ def train():
                 verbose_eval=500)
             filename_1 = 'finalized_model_lgb_l1.sav'
             filename_2 = 'finalized_model_lgb_l2.sav'
-            
-            
+
             pickle.dump(lgb_l1, open(filename_1, 'wb'))
-            
             pickle.dump(lgb_l2, open(filename_2, 'wb'))
-    
     else:
         # Only LGB L2 is trained
         if mode in [PROD_OOF, VALID_TRN, STAGE2_OOF, FAST_VALID]:
-            print ("3 =========================================================")
             for fold_n, (trn_idx, val_idx) in enumerate(folds.split(csr_lgb_trn)):
                 d_train = lgb.Dataset(csr_lgb_trn[trn_idx], label=y[trn_idx])  # , max_bin=8192)
                 d_valid = lgb.Dataset(csr_lgb_trn[val_idx], label=y[val_idx])  # , max_bin=8192)
@@ -1603,12 +1389,9 @@ def train():
                     num_boost_round=lgb2_rounds,
                     valid_sets=watchlist,
                     verbose_eval=500)
-    
                 break
                 # Check OOF score of ensemble ?
-    
         else:
-            print ("4 =========================================================")
             d_train = lgb.Dataset(csr_lgb_trn, label=y)
             watchlist = [d_train]
             # Train lgb l2
@@ -1618,796 +1401,86 @@ def train():
                 num_boost_round=lgb2_rounds,  # Beware this is not the same as in OOF mode
                 valid_sets=watchlist,
                 verbose_eval=500)
-      
-    
-    # In[67]:
-    
-    
     del csr_lgb_trn
     gc.collect()
-    
-    
-    # In[68]:
-    
-    
-    print("=" * 50)
+
     print("TRAINING PART HAS NOW COMPLETE, STARTING PREDICTION PART")
-    print("=" * 50)        
 
 
-   # global score
-    #return jsonify({'accuracy': score})
+    score=100
+    return jsonify({'accuracy': score})
 
 
 @app.route('/api/predict', methods=['POST'])
 def predict():
-    print "Hello"
-    # get iris object from request
-    #X = request.get_json()
-    #X = [[float(X['sepalLength']), float(X['sepalWidth']), float(X['petalLength']), float(X['petalWidth'])]]
+    print "Beginning Prediction"
 
-    ## read model
-    #clf = joblib.load('model.pkl')
-    #probabilities = clf.predict_proba(X)
-
-    #return jsonify([{'name': 'Iris-Setosa', 'value': round(probabilities[0, 0] * 100, 2)}])
-    ##return jsonify([{'name': 'Iris-Setosa', 'value': round(probabilities[0, 0] * 100, 2)},
-    ##                {'name': 'Iris-Versicolour', 'value': round(probabilities[0, 1] * 100, 2)},
-    ##                {'name': 'Iris-Virginica', 'value': round(probabilities[0, 2] * 100, 2)}])
-    
     main_apply_series_man = ApplySeriesManager(nb_workers=4)
-    
-    
-    # In[25]:
-    
-    
     main_apply_man = ApplyManager(nb_workers=4)
-    
-    
-    # In[26]:
-    
-    
     main_hash_man = HashingManager(nb_workers=4)
-    
-    
-    # In[27]:
-    
-    
     mode=PROD
     # Read training data and test dataset
     data_man = DataManager(mode=mode)
-    
-    
-    # In[28]:
-    
-    
-    train = data_man.get_train_data()
-    
-    
-    # In[29]:
-    
-    
-    train["severity"] = train["severity"].map({'NA':0, 'Low':4, 'Medium':3, 'High':2, 'Critical':1})
-    train["priority"] = train["priority"].map({'NA':0, 'Undefined':0, 'P1 (Gating)':1, 'P2 (Must Solve)':2, 'P3 (Solution Desired)':3, 'P4 (No Impact/Notify)':4})
-    
-    
-    # In[30]:
-    
-    
-    train['severity'].value_counts()
-    
-    
-    # In[31]:
-    
-    
-    train['priority'].value_counts()
-    
-    
-    # In[32]:
-    
-    
-    train["severity"].fillna(4, axis=0, inplace=True) 
-    train["priority"].fillna(4, axis=0, inplace=True) 
-    #train.loc[(train.severity == 1) & (train.priority == 1), 'states'] =  1
-    #train.loc[(train.severity == 1) & (train.priority == 2), 'states'] =  2
-    #train.loc[(train.severity == 1) & (train.priority == 3), 'states'] =  3
-    #train.loc[(train.severity == 1) & (train.priority == 4), 'states'] =  4
-    #train.loc[(train.severity == 2) & (train.priority == 1), 'states'] =  5
-    #train.loc[(train.severity == 2) & (train.priority == 2), 'states'] =  6
-    #train.loc[(train.severity == 2) & (train.priority == 3), 'states'] =  7
-    #train.loc[(train.severity == 2) & (train.priority == 4), 'states'] =  8 
-    #train.loc[(train.severity == 3) & (train.priority == 1), 'states'] =  9
-    #train.loc[(train.severity == 3) & (train.priority == 2), 'states'] =  10
-    #train.loc[(train.severity == 3) & (train.priority == 3), 'states'] =  11
-    #train.loc[(train.severity == 3) & (train.priority == 4), 'states'] =  12
-    #train.loc[(train.severity == 4) & (train.priority == 1), 'states'] =  13
-    #train.loc[(train.severity == 4) & (train.priority == 2), 'states'] =  14
-    #train.loc[(train.severity == 4) & (train.priority == 3), 'states'] =  15
-    #train.loc[(train.severity == 4) & (train.priority == 4), 'states'] =  16  
-    
-    
-    # In[33]:
-    
-    
-    #train['states'].value_counts()
-    
-    
-    # In[34]:
-    
-    
-    #train["states"].fillna(0, axis=0, inplace=True) 
-    #y = train["states"].values
-    
-    
-    # In[35]:
-    
-    add_character_and_word_lengths(data=train, app_series_man_=main_apply_series_man)
-    
-    
-    # In[36]:
-    
-    
-    preprocess_text_features(df=train, app_series_man_=main_apply_series_man)
-    
-    
-    # In[37]:
-    
-    
-    csr_description_trn = get_hashing_features(train, Hash_binary, main_apply_series_man, main_apply_man, main_hash_man)
-    
-    
-    # In[38]:
-    
-    
-    csr_description_trn
-    
-    
-    # In[39]:
-    
-    
-    trn_not_zeros = np.array((csr_description_trn.sum(axis=0) != 0))[0]
-    csr_description_trn = csr_description_trn[:, trn_not_zeros]
-    gc.collect()
-    
-    
-    # In[40]:
-    
-    
-    #csr_description_trn
-    
-    
-    # In[41]:
-    
-    
-    triage_man = OHEManager(feature_name="triage")
-    triage_man.add_factorized_feature_on_train(trn=train)
-    csr_triage_trn = triage_man.get_feature_for_sgd_train(trn=train)
-    csr_triage_trn
-    
-    
-    # In[42]:
-    
-    
-    #csr_ridge_trn = csr_triage_trn
-    
-    
-    # In[43]:
-    
-    
-    #trn_not_zeros = np.array((csr_triage_trn.sum(axis=0) != 0))[0]
-    #csr_triage_trn = csr_triage_trn[:, trn_not_zeros]
-    #gc.collect()
-    
-    
-    # In[44]:
-    
-    
-    #csr_ridge_trn = hstack((
-    #        csr_triage_trn,
-    #        csr_description_trn
-    #    )).tocsr()
-    #csr_ridge_trn
-    
-    
-    # In[45]:
-    
-    
-    #folds = KFold(n_splits=10, shuffle=True, random_state=10)
-    #models_list = fit_sgd_models(csr_ridge_trn, folds, y)
-    
-    
-    # In[46]:
-    
-    
-    #oof_liblinear_preds, oof_ridge_preds = get_sgd_oof_predictions(csr_ridge_trn, folds, models_list, y)
-    
-    
-    # In[47]:
-    
-    
-    #gc.collect()
-    
-    
-    # In[48]:
-    
-    
-    #print("=" * 50)
-    #print("Finished training ridge/liblinear")
-    #print("=" * 50)
-    
-    
-    # In[49]:
-    
-    
-    # Add OOF predictions to train data
-    #train["sgd_liblinear"] = np.expm1(oof_liblinear_preds)
-    #train["sgd_ridge"] = np.expm1(oof_ridge_preds)
-    #train["liblinear_ridge"] = .50 * np.expm1(oof_liblinear_preds) + .50 * np.expm1(oof_ridge_preds)
-    
-    
-    # In[50]:
-    
-    
-    #name_indexers = add_name_features_for_train(df=train)
-    
-    
-    # In[51]:
-    
-    
-    #csr_num_trn = get_numerical_features(
-            #train,
-            #numericals=get_numerical_features_for_lgb(train),
-            #gaussian=False,
-            #rank=True
-        #)
-    
-    
-    ## In[52]:
-    
-    
-    #print("NAN IN NUM : ", np.isnan(np.array((csr_num_trn.sum(axis=0)))[0]).sum())
-    
-    
-    ## In[53]:
-    
-    
-    name_description = train[["Description"]].copy()
-    #del train
-    #gc.collect()
-    
-    
-    # In[54]:
-    
-    
-    #indices_low = np.arange(csr_description_trn.shape[1])
-    
-    
-    # In[55]:
-    
-    
-    #indices_low
-    
-    
-    # In[56]:
-    
-    
-    #util_cols_low_trn = np.array((csr_description_trn.sum(axis=0) >= 400))[0]
-    
-    
-    # In[57]:
-    
-    
-    #util_cols_low_trn
-    
-    
-    # In[58]:
-    
-    
-    #csr_description_trn = csr_description_trn[:, indices_low[util_cols_low_trn]]
-    
-    
-    # In[59]:
-    
-    
-    #indices_high = np.arange(csr_description_trn.shape[1])
-    #util_cols_high_trn = np.array((csr_description_trn.sum(axis=0) < 30000))[0]
-    #csr_description_trn = csr_description_trn[:, indices_high[util_cols_high_trn]]
-    
-    
-    # In[60]:
-    
-    
-    #print("Feature reduction done, X_description shape ", csr_description_trn.shape, " after col pruning")
-    
-    
-    # In[61]:
-    
-    
-    csr_tfidfname_trn, wordbatch_tfidf, clipping = get_tfidf_features_for_train(name_description, hash_man_=main_hash_man)
-    
-    
-    # In[62]:
-    
-    
-    #csr_lgb_trn = hstack((
-            #csr_tfidfname_trn,
-            #csr_description_trn,
-            #csr_num_trn,
-            #csr_triage_trn
-        #)).tocsr()
-    
-    
-    # In[63]:
-    
-    
-    #del csr_description_trn, csr_num_trn, csr_tfidfname_trn
-    #gc.collect()
-    
-    
-    # In[64]:
-    
-    
-    # Create parameters
-    params = {
-           "objective": "regression",
-           'metric': {'rmse'},
-           "boosting_type": "gbdt",
-           "verbosity": 0,
-           "num_threads": 4,
-           "bagging_fraction": 0.78,
-           "feature_fraction": 0.76,
-           "learning_rate": 0.4,
-           "min_child_weight": 197,
-           "min_data_in_leaf": 197,
-           "num_leaves": 103,
-       }
-    
-    params_l2 = {
-           'learning_rate': 0.4,
-           'application': 'regression_l2',
-           'max_depth': 4,
-           'num_leaves': 70,
-           'verbosity': -1,
-           "min_split_gain": 0,
-           'lambda_l1': 4,
-           'subsample': 1,
-           "bagging_freq": 1,
-           'colsample_bytree': 1,
-           'metric': 'RMSE',
-           'nthread': 4
-       }
-    
-    
-    # In[65]:
-    
-    
-    #lgb1_rounds = 500
-    #lgb2_rounds = 4000
-    #csr_lgb_trn = csr_lgb_trn.astype('float32')
-    
-    
-    # In[66]:
-    
-    
-    #if ensemble:
-        ## Run LGB 1 and LGB 2
-        ## Reuse folds defined for ridge/sgd
-        ## to avoid overfitting
-        #if mode in [PROD_OOF, VALID_TRN, STAGE2_OOF, FAST_VALID]:
-            #for fold_n, (trn_idx, val_idx) in enumerate(folds.split(csr_lgb_trn)):
-                #d_train = lgb.Dataset(csr_lgb_trn[trn_idx], label=y[trn_idx])  # , max_bin=8192)
-                #d_valid = lgb.Dataset(csr_lgb_trn[val_idx], label=y[val_idx])  # , max_bin=8192)
-                #watchlist = [d_train, d_valid]
-                ##cpuStats()
-                ## Train lgb l1
-                #lgb_l1 = lgb.train(
-                    #params=params,
-                    #train_set=d_train,
-                    #num_boost_round=lgb1_rounds,
-                    #valid_sets=watchlist,
-                    #verbose_eval=100.0)
-                ## Train lgb l2
-                #lgb_l2 = lgb.train(
-                    #params=params_l2,
-                    #train_set=d_train,
-                    #num_boost_round=lgb2_rounds,
-                    #valid_sets=watchlist,
-                    #verbose_eval=500.0)
-    
-                #break
-            ## Check OOF score of ensemble ?
-            #oof_l1 = lgb_l1.predict(csr_lgb_trn[val_idx])
-            #oof_l2 = lgb_l2.predict(csr_lgb_trn[val_idx])
-            #print ("1 =========================================================")
-    
-            #print("OOF error L1   : %.6f "
-                  #% mean_squared_error(y[val_idx], oof_l1) ** .5)
-            #print("OOF error L2   : %.6f "
-                  #% mean_squared_error(y[val_idx], oof_l2) ** .5)
-            #print("OOF error Mix1 : %.6f "
-                  #% mean_squared_error(y[val_idx], oof_l1 * .3 + oof_l2 * .7) ** .5)
-            #oof_preds = np.expm1(oof_l2) * .7 + np.expm1(oof_l1) * .3
-            #print("OOF error Mix2 : %.6f "
-                  #% mean_squared_error(y[val_idx], np.log1p(oof_preds)) ** .5)
-        #else:
-            #d_train = lgb.Dataset(csr_lgb_trn, label=y)
-            #watchlist = [d_train]
-            #print ("2 =========================================================")
-    
-            ## Train lgb l1
-            #lgb_l1 = lgb.train(
-                #params=params,
-                #train_set=d_train,
-                #num_boost_round=lgb1_rounds,  # was 700, 400 comes from OOF
-                #valid_sets=watchlist,
-                #verbose_eval=100)
-            ## Train lgb l2
-            #lgb_l2 = lgb.train(
-                #params=params_l2,
-                #train_set=d_train,
-                #num_boost_round=lgb2_rounds,  # Beware this is not the same as in OOF mode
-                #valid_sets=watchlist,
-                #verbose_eval=500)
-    
-    #else:
-        ## Only LGB L2 is trained
-        #if mode in [PROD_OOF, VALID_TRN, STAGE2_OOF, FAST_VALID]:
-            #print ("3 =========================================================")
-            #for fold_n, (trn_idx, val_idx) in enumerate(folds.split(csr_lgb_trn)):
-                #d_train = lgb.Dataset(csr_lgb_trn[trn_idx], label=y[trn_idx])  # , max_bin=8192)
-                #d_valid = lgb.Dataset(csr_lgb_trn[val_idx], label=y[val_idx])  # , max_bin=8192)
-                #watchlist = [d_train, d_valid]
-                #cpuStats()
-                ## Train lgb l2
-                #lgb_l2 = lgb.train(
-                    #params=params_l2,
-                    #train_set=d_train,
-                    #num_boost_round=lgb2_rounds,
-                    #valid_sets=watchlist,
-                    #verbose_eval=500)
-    
-                #break
-                ## Check OOF score of ensemble ?
-    
-        #else:
-            #print ("4 =========================================================")
-            #d_train = lgb.Dataset(csr_lgb_trn, label=y)
-            #watchlist = [d_train]
-            ## Train lgb l2
-            #lgb_l2 = lgb.train(
-                #params=params_l2,
-                #train_set=d_train,
-                #num_boost_round=lgb2_rounds,  # Beware this is not the same as in OOF mode
-                #valid_sets=watchlist,
-                #verbose_eval=500)
-    
-    
-    ## In[67]:
-    
-    
-    #del csr_lgb_trn
-    #gc.collect()
-    
-    
-    # In[68]:
-    
-    
-    #print("=" * 50)
-    #print("TRAINING PART HAS NOW COMPLETE, STARTING PREDICTION PART")
-    #print("=" * 50)
-    
-    
-    # In[69]:
-    
-    
     test1 = data_man.get_test_data()
-    
-    
-    # In[70]:
-    
-    
     test1["severity"] = test1["severity"].map({'NA':0, 'Low':4, 'Medium':3, 'High':2, 'Critical':1})
     test1["priority"] = test1["priority"].map({'NA':0, 'Undefined':0, 'P1 (Gating)':1, 'P2 (Must Solve)':2, 'P3 (Solution Desired)':3, 'P4 (No Impact/Notify)':4})
-    
-    
-    # In[71]:
-    
-    
     batch_size = 100
     submission_preds = np.zeros(len(test1))
-    
-    
-    # In[72]:
-    
-    
     test1['severity'].value_counts()
-    
-    
-    # In[73]:
-    
-    
     test1['priority'].value_counts()
-    
-    
-    # In[74]:
-    
-    
-    test1["severity"].fillna(4, axis=0, inplace=True) 
-    test1["priority"].fillna(4, axis=0, inplace=True) 
-    test1.shape
-    
-    
-    # In[75]:
-    
-    
+    test1["severity"].fillna(4, axis=0, inplace=True)
+    test1["priority"].fillna(4, axis=0, inplace=True)
     add_character_and_word_lengths(data=test1, app_series_man_=main_apply_series_man)
-    
-    
-    # In[76]:
-    
-    
-    test1.shape
-    
-    
-    # In[77]:
-    
-    
     test1.head(5)
-    
-    
-    # In[78]:
-    
-    
     preprocess_text_features(df=test1, app_series_man_=main_apply_series_man)
-    test1.shape
-    
-    
-    # In[79]:
-    
-    
     test1.isnull().any()
-    
-    
-    # In[80]:
-    
-    
     csr_description_test2 = get_hashing_features(test1, Hash_binary, main_apply_series_man, main_apply_man, main_hash_man)
-    
-    
-    # In[81]:
-    
-    
-    csr_description_test2
-    
-    
-    # In[82]:
-    
-    
     test1_not_zeros = np.array((csr_description_test2.sum(axis=0) != 0))[0]
     csr_description_test1 = csr_description_test2[:, test1_not_zeros]
     gc.collect()
-    
-    
-    # In[83]:
-    
-    
     del csr_description_test2
     gc.collect()
-    
-    
-    # In[84]:
-    
-    
     csr_description_test1
-    
-    
-    # In[85]:
-    
-    
+    triage_man = OHEManager(feature_name="triage")
     triage_man.add_factorized_feature_on_test(sub=test1)
     csr_triage_test1 = triage_man.get_feature_for_sgd_test(sub=test1)
-    
-    
-    # In[86]:
-    
-    
     test_not_zeros = np.array((csr_triage_test1.sum(axis=0) != 0))[0]
     csr_triage_test1 = csr_triage_test1[:, test_not_zeros]
     gc.collect()
     csr_triage_test1
-    
-    
-    # In[87]:
-    
-    
-    #csr_ridge_test1 = hstack((
-    #        csr_triage_test1,
-    #        csr_description_test1, 
-    #    )).tocsr()
-    
-    
-    # In[88]:
-    
-    
-    #csr_ridge_test1
-    
-    
-    # In[89]:
-    
-    
-    #sub_liblinear_preds = np.empty(len(test1))
-    #sub_ridge_preds = np.empty(len(test1))
-    
-    
-    # In[90]:
-    
-    
-    #sub_liblinear_preds, sub_ridge_preds = get_sgd_test_predictions(csr_ridge_test1, folds, models_list)
-    
-    
-    # In[91]:
-    
-    
-    #test1["sgd_liblinear"] = np.expm1(sub_liblinear_preds)
-    #test1["sgd_ridge"] = np.expm1(sub_ridge_preds)
-    #test1["liblinear_ridge"] = .50 * np.expm1(sub_liblinear_preds) + .50 * np.expm1(sub_ridge_preds)
-    
-    
-    # In[92]:
-    
-    
     csr_num_test1 = get_numerical_features(
             test1,
             numericals=get_numerical_features_for_lgb(test1),
             gaussian=False,
             rank=True
         )
-    
-    
-    # In[93]:
-    
-    
-    #folds = KFold(n_splits=10, shuffle=True, random_state=10)
     name_indexers = add_name_features_for_train(df=test1)
-    
-    
-    # In[94]:
-    
-    
-    
     csr_num_test1 = get_numerical_features(
             test1,
             numericals=get_numerical_features_for_lgb(test1),
             gaussian=False,
             rank=True
         )
-    
-    
-    # In[95]:
-    
-    
-    print("NAN IN NUM : ", np.isnan(np.array((csr_num_test1.sum(axis=0)))[0]).sum())
-    
-    
-    # In[96]:
-    
-    
     name_description = test1[["Description"]].copy()
     gc.collect()
-    
-    
-    # In[97]:
-    
-    
-    #indices_low = np.arange(csr_description_test1.shape[1])
-    
-    #indices_low
-    
-    
-    
-    # In[98]:
-    
-    
-    #util_cols_low_trn = np.array((csr_description_test1.sum(axis=0) >= 400))[0]
-    
-    #util_cols_low_trn
-    
-    
-    # In[99]:
-    
-    
-    
-    
-    
-    #csr_description_test1 = csr_description_test1[:, indices_low[util_cols_low_trn]]
-    
-    
-    # In[100]:
-    
-    
-    #csr_description_test1 = csr_description_test1[:, indices_low[util_cols_low_trn]]
-    #csr_description_test1 = csr_description_test1[:, indices_high[util_cols_high_trn]]
-    
-    
-    # In[101]:
-    
-    
-    
-    #indices_high = np.arange(csr_description_test1.shape[1])
-    #util_cols_high_trn = np.array((csr_description_test1.sum(axis=0) < 20000))[0]
-    #csr_description_test1 = csr_description_test1[:, indices_high[util_cols_high_trn]]
-    
-    
-    # In[102]:
-    
-    
-    print("Feature reduction done, X_description shape ", csr_description_test1.shape, " after col pruning")
-    
-    
-    # In[103]:
-    
-    
     csr_num_test = get_numerical_features(test1, numericals=get_numerical_features_for_lgb(test1), gaussian=False,
                                              rank=True)
-    
-    
-    # In[104]:
-    
-    
     description_test = test1[["Description"]].copy()
-    
-    
-    # In[105]:
-    
-    
-    #del test
-    #gc.collect()
-    
-    
-    # In[106]:
-    
-    
     csr_tfidfname_test = get_tfidf_features_for_test(description_test, wordbatch_tfidf, clipping, hash_man_=main_hash_man)
-    
-    
-    # In[107]:
-    
-    
     submission = test1[["id"]].copy()
-    
-    
-    # In[108]:
-    
-    
     if ensemble:
         predsL1 = np.empty(len(submission))
         predsL2 = np.empty(len(submission))
-    
+
         csr_lgb_sub = hstack((
         csr_tfidfname_test,
         csr_description_test1,
         csr_num_test,
-        csr_triage_test1    
+        csr_triage_test1
         )).tocsr()
-        
+
     csr_lgb_sub
-    
-    
-    # In[109]:
-    
-    
-    #predsL1 = lgb_l1.predict(csr_lgb_sub)
-    #predsL2 = lgb_l2.predict(csr_lgb_sub)
-    
-    
-    # In[110]:
-    
-    
     y_test = np.ones(388)
-    #y_test = np.full(257, 6)
-    #preds = (predsL2) * .7 + (predsL1) * .3
-    
-    
     filename_1 = 'finalized_model_lgb_l1.sav'
     filename_2 = 'finalized_model_lgb_l2.sav'
     loaded_model_1 = pickle.load(open(filename_1, 'rb'))
@@ -2415,44 +1488,12 @@ def predict():
     result_1 = loaded_model_1.predict(csr_lgb_sub)
     result_2 = loaded_model_2.predict(csr_lgb_sub)
     result = (result_2) * .7 + (result_1) * .3
-    
-    print("Test error L1   : %.6f "
-                    % mean_squared_error(y_test, result_1) ** .5)
-    print("Test error L2   : %.6f "
-                    % mean_squared_error(y_test, result_2) ** .5)
-    print("Test error Mix  : %.6f "
-                      % mean_squared_error(y_test, result) ** .5)
-    
-    
-    #print(result1)
-    #print ("=============== RESULT")
-    #print (result_1)
-    
-    # In[111]:
-    
-    #print ("Befor y_test --------------------------")
-    #y_test
-    
-    #print ("After y_test --------------------------")
-    # In[112]:
-    
-    
-    #from sklearn.metrics import confusion_matrix
-    #cm = confusion_matrix(y_test, preds.round())
-    #cm
-    
-    
-    # In[113]:
-    
-    
     from sklearn.metrics import accuracy_score
     accuracy=accuracy_score(result.round(),y_test, normalize=False)
-    #print(result1)
-    print ("=============== ACCURACY")
-    print (accuracy)
-    
-    
-
+#    return jsonify([{'name': 'P1/S1', 'value': accuracy}])
+    data = jsonify([{'name': 'P1/S1', 'value': accuracy}])
+    print(json.dumps(data, indent=4))
+    return data
 
 if __name__ == '__main__':
     # run web server

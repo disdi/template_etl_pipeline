@@ -1,8 +1,6 @@
 export class Iris {
-    sepalLength: number = 5.0;
-    sepalWidth: number = 3.5;
-    petalLength: number = 2.5;
-    petalWidth: number = 1.2;
+    sepalWidth: number = 0.0;
+    sepalLength: string = "  ";
 }
 
 export class ProbabilityPrediction {
